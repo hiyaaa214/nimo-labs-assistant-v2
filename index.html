@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multilingual Voice Assistant</title>
+<style>
+  :root {
+    --bg: #12181b;
+    --panel: #1b2327;
+    --accent: #4fd1c5;
+    --accent-dim: #2d6e66;
+    --text: #e8f0ef;
+    --text-dim: #8ba3a0;
+    --danger: #e0645a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: 0.3px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .mic-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    margin: 32px 0;
+  }
+
+  #micBtn {
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #06201d;
+    font-size: 34px;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s ease;
+    box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.5);
+  }
+
+  #micBtn:hover { transform: scale(1.05); }
+
+  #micBtn.recording {
+    background: var(--danger);
+    animation: pulse 1.4s infinite;
+  }
+
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(224, 100, 90, 0.55); }
+    70%  { box-shadow: 0 0 0 22px rgba(224, 100, 90, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(224, 100, 90, 0); }
+  }
+
+  #statusText {
+    color: var(--text-dim);
+    font-size: 14px;
+    min-height: 20px;
+  }
+
+  .log {
+    background: #0f1518;
+    border-radius: 12px;
+    padding: 16px;
+    height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 85%;
+  }
+
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--accent-dim);
+    color: var(--text);
+  }
+
+  .bubble.assistant {
+    align-self: flex-start;
+    background: #263136;
+    color: var(--text);
+  }
+
+  .bubble .lang-tag {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>🏨 Hotel Voice Assistant</h1>
+    <div class="subtitle">Speak in any language. I'll understand and reply back, out loud.</div>
+
+    <div class="mic-wrap">
+      <button id="micBtn">🎤</button>
+      <div id="statusText">Tap to speak</div>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+  const BACKEND_URL = "http://127.0.0.1:8000";
+  const WAKE_WORD = "hello hiya";        // change this phrase anytime
+  const SILENCE_THRESHOLD = 8;           // lower = more sensitive to quiet sounds
+  const SILENCE_DURATION_MS = 3500;      // how long silence must last before auto-stop
+
+  const micBtn = document.getElementById("micBtn");
+  const statusText = document.getElementById("statusText");
+  const log = document.getElementById("log");
+
+  let mediaRecorder;
+  let audioChunks = [];
+  let isRecording = false;
+  let wakeRecognition;
+  let audioContext, analyser;
+
+  function addBubble(text, sender, langTag) {
+    const bubble = document.createElement("div");
+    bubble.className = "bubble " + sender;
+    bubble.textContent = text;
+    if (langTag) {
+      const tag = document.createElement("span");
+      tag.className = "lang-tag";
+      tag.textContent = langTag;
+      bubble.appendChild(tag);
+    }
+    log.appendChild(bubble);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // --- PART 1: Always-on wake word listener ---
+  function initWakeWordListener() {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      statusText.textContent = "Wake word needs Chrome or Edge browser.";
+      return;
+    }
+
+    wakeRecognition = new SpeechRecognitionClass();
+    wakeRecognition.continuous = true;
+    wakeRecognition.interimResults = true;
+    wakeRecognition.lang = "en-US";
+
+    wakeRecognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(r => r[0].transcript)
+        .join(" ")
+        .toLowerCase();
+
+      if (transcript.includes(WAKE_WORD)) {
+        wakeRecognition.stop();
+        beginListeningForCommand();
+      }
+    };
+
+    // Browsers auto-stop this after a while of silence — just restart it
+    wakeRecognition.onend = () => {
+      if (!isRecording) {
+        wakeRecognition.start();
+      }
+    };
+
+    wakeRecognition.start();
+    statusText.textContent = 'Say "Hello Hiya" to begin';
+    micBtn.classList.remove("recording");
+  }
+
+  // --- PART 2: Record the actual question, auto-stop on silence ---
+  async function beginListeningForCommand() {
+    isRecording = true;
+    micBtn.classList.add("recording");
+    statusText.textContent = "Listening to your question...";
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    const micSource = audioContext.createMediaStreamSource(stream);
+    micSource.connect(analyser);
+
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop());
+      audioContext.close();
+      handleRecordingStop();
+    };
+
+    mediaRecorder.start();
+    monitorSilence();
+  }
+
+  function monitorSilence() {
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let silenceStart = null;
+
+    function checkVolume() {
+      if (!isRecording) return;
+
+      analyser.getByteFrequencyData(dataArray);
+      const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+      if (volume < SILENCE_THRESHOLD) {
+        if (silenceStart === null) silenceStart = Date.now();
+        if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
+          stopRecording();
+          return;
+        }
+      } else {
+        silenceStart = null;
+      }
+
+      requestAnimationFrame(checkVolume);
+    }
+
+    requestAnimationFrame(checkVolume);
+  }
+
+  function stopRecording() {
+    mediaRecorder.stop();
+    isRecording = false;
+    micBtn.classList.remove("recording");
+    statusText.textContent = "Thinking...";
+  }
+
+  // --- PART 3: Process the recording (unchanged logic, just auto-restarts wake word after) ---
+  async function handleRecordingStop() {
+    const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "recording.webm");
+
+    try {
+      const transcribeRes = await fetch(BACKEND_URL + "/transcribe", {
+        method: "POST",
+        body: formData
+      });
+      const transcribeData = await transcribeRes.json();
+      const userText = transcribeData.text;
+      const detectedLang = transcribeData.language;
+
+      if (!userText || !userText.trim()) {
+        statusText.textContent = 'Didn\'t catch that. Say "Hello Hiya" to try again.';
+        initWakeWordListener();
+        return;
+      }
+
+      addBubble(userText, "user", "Detected: " + detectedLang);
+
+      const chatRes = await fetch(BACKEND_URL + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText })
+      });
+      const chatData = await chatRes.json();
+      const replyText = chatData.reply;
+
+      addBubble(replyText, "assistant");
+      await speak(replyText, detectedLang);
+
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = "Something went wrong. Check console/backend.";
+    } finally {
+      initWakeWordListener();
+    }
+  }
+
+  function speak(text, detectedLang) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const langKey = (detectedLang || "english").toLowerCase().trim();
+
+        const speakRes = await fetch(BACKEND_URL + "/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, language: langKey })
+        });
+
+        const audioBlob = await speakRes.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        const audio = new Audio(audioUrl);
+        audio.onended = resolve;
+        audio.play();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Manual click still works as a quick test shortcut (skips the wake word)
+  micBtn.addEventListener("click", () => {
+    if (!isRecording) {
+      if (wakeRecognition) wakeRecognition.stop();
+      beginListeningForCommand();
+    }
+  });
+
+  // Start the assistant listening for the wake word as soon as the page loads
+  initWakeWordListener();
+</script>
+
+</body>
+</html>
