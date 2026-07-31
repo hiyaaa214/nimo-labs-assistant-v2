@@ -96,20 +96,16 @@ def detect_script_language(text: str, whisper_language: str) -> str:
         "kannada": r'[\u0C80-\u0CFF]',
         "malayalam": r'[\u0D00-\u0D7F]',
         "punjabi": r'[\u0A00-\u0A7F]',   # Gurmukhi script
-        "urdu": r'[\u0600-\u06FF]',      # Arabic/Urdu script
     }
 
     for language_name, pattern in script_ranges.items():
         if re.search(pattern, text):
             return language_name
 
-    # Devanagari script covers both Hindi and Marathi — script alone can't
-    # tell them apart, so check for common Marathi-only words as a signal
+    # Devanagari script covers both Hindi and Marathi — can't tell these
+    # apart from script alone, so trust Whisper's guess in that case
     has_devanagari = bool(re.search(r'[\u0900-\u097F]', text))
     if has_devanagari:
-        marathi_markers = ["आहे", "आहेत", "काय", "कसे", "नाही", "मला", "आम्ही", "तुम्ही"]
-        if any(marker in text for marker in marathi_markers):
-            return "marathi"
         return whisper_language
 
     # No Indian script detected at all -> almost certainly English
@@ -132,9 +128,7 @@ async def transcribe(audio: UploadFile = File(...)):
         transcription = client.audio.transcriptions.create(
             model="whisper-large-v3",
             file=audio_file,
-            response_format="verbose_json",   # gives us the detected language too
-            prompt="This audio may be in Hindi, Gujarati, Marathi, Bengali, Tamil, "
-                   "Telugu, Kannada, Malayalam, Punjabi, Urdu, or English."
+            response_format="verbose_json"   # gives us the detected language too
         )
 
         corrected_language = detect_script_language(transcription.text, transcription.language)
@@ -150,9 +144,8 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 @app.get("/")
-def serve_frontend():
-    from fastapi.responses import FileResponse
-    return FileResponse(Path(__file__).parent / "index.html")
+def root():
+    return {"status": "Multilingual AI Assistant backend is running!"}
 
 
 # Maps Whisper's detected language name to a verified edge-tts voice.
