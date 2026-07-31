@@ -3,16 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Multilingual Voice Assistant</title>
+<title>Nimo Labs — Voice Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #12181b;
-    --panel: #1b2327;
-    --accent: #4fd1c5;
-    --accent-dim: #2d6e66;
-    --text: #e8f0ef;
-    --text-dim: #8ba3a0;
-    --danger: #e0645a;
+    --bg-top: #1a2153;
+    --bg-bottom: #0a0d24;
+    --panel: rgba(255,255,255,0.045);
+    --panel-border: rgba(232,174,85,0.16);
+    --gold: #e8ae55;
+    --gold-dim: #a9803f;
+    --maroon: #b7415c;
+    --ivory: #f5f0e6;
+    --muted: #9aa1c9;
+    --line: rgba(232,174,85,0.22);
   }
 
   * { box-sizing: border-box; }
@@ -20,134 +26,290 @@
   body {
     margin: 0;
     min-height: 100vh;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 50% -10%, #29316e 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+    color: var(--ivory);
+    font-family: 'Manrope', sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 32px 20px;
   }
 
   .card {
     width: 100%;
-    max-width: 520px;
+    max-width: 460px;
     background: var(--panel);
-    border-radius: 20px;
-    padding: 32px 28px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    border: 1px solid var(--panel-border);
+    border-radius: 24px;
+    padding: 36px 32px 28px;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 30px 80px rgba(4,6,20,0.55);
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
   }
 
   h1 {
-    font-size: 22px;
-    margin: 0 0 4px;
-    letter-spacing: 0.3px;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: 0.2px;
+    margin: 0 0 8px;
+    color: var(--ivory);
   }
 
   .subtitle {
-    color: var(--text-dim);
     font-size: 14px;
-    margin-bottom: 28px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    max-width: 34ch;
   }
 
-  .mic-wrap {
+  /* --- Mandala visualizer --- */
+  .orb-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
-    margin: 32px 0;
+    gap: 18px;
+    margin: 36px 0 30px;
   }
 
-  #micBtn {
-    width: 92px;
-    height: 92px;
-    border-radius: 50%;
-    border: none;
-    background: var(--accent);
-    color: #06201d;
-    font-size: 34px;
-    cursor: pointer;
-    transition: transform 0.15s ease, background 0.2s ease;
-    box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.5);
-  }
-
-  #micBtn:hover { transform: scale(1.05); }
-
-  #micBtn.recording {
-    background: var(--danger);
-    animation: pulse 1.4s infinite;
-  }
-
-  @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(224, 100, 90, 0.55); }
-    70%  { box-shadow: 0 0 0 22px rgba(224, 100, 90, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(224, 100, 90, 0); }
-  }
-
-  #statusText {
-    color: var(--text-dim);
-    font-size: 14px;
-    min-height: 20px;
-  }
-
-  .log {
-    background: #0f1518;
-    border-radius: 12px;
-    padding: 16px;
-    height: 260px;
-    overflow-y: auto;
+  .orb-stage {
+    position: relative;
+    width: 200px;
+    height: 200px;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    justify-content: center;
   }
 
-  .bubble {
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 14px;
-    line-height: 1.4;
-    max-width: 85%;
+  .orb-stage svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
 
-  .bubble.user {
-    align-self: flex-end;
-    background: var(--accent-dim);
-    color: var(--text);
+  .ring {
+    fill: none;
+    stroke: var(--gold-dim);
+    stroke-width: 1;
+    opacity: 0.5;
+    transform-origin: 100px 100px;
+    transition: stroke 0.4s ease, opacity 0.4s ease;
   }
 
-  .bubble.assistant {
-    align-self: flex-start;
-    background: #263136;
-    color: var(--text);
+  .ring-outer { animation: rotate-slow 40s linear infinite; }
+  .ring-mid   { animation: rotate-slow 30s linear infinite reverse; }
+
+  @keyframes rotate-slow {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
 
-  .bubble .lang-tag {
-    display: block;
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 4px;
+  .petals {
+    transform-origin: 100px 100px;
+    animation: rotate-slow 60s linear infinite;
+  }
+
+  .petals line {
+    stroke: var(--gold);
+    stroke-width: 1.4;
+    opacity: 0.55;
+  }
+
+  .core {
+    fill: url(#coreGradient);
+    transition: r 0.08s ease-out, opacity 0.4s ease;
+  }
+
+  .core-glow {
+    fill: var(--gold);
+    opacity: 0.18;
+    filter: blur(10px);
+    transition: r 0.08s ease-out, fill 0.4s ease;
+  }
+
+  /* State-based coloring */
+  .orb-stage.state-thinking .core-glow,
+  .orb-stage.state-thinking .core { fill: var(--maroon); }
+  .orb-stage.state-thinking .ring { stroke: var(--maroon); }
+  .orb-stage.state-thinking .petals { animation-duration: 6s; }
+
+  .orb-stage.state-speaking .ring { stroke: var(--gold); opacity: 0.85; }
+
+  .orb-stage.state-listening .ring { opacity: 0.9; }
+
+  .status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+    min-height: 16px;
+  }
+
+  .tap-hint {
+    background: none;
+    border: 1px solid var(--panel-border);
+    color: var(--muted);
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .tap-hint:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  /* --- Guest register (transcript) --- */
+  .register {
+    max-height: 260px;
+    overflow-y: auto;
+    padding-top: 6px;
+  }
+
+  .entry {
+    padding: 14px 0;
+    border-top: 1px solid rgba(232,174,85,0.14);
+  }
+
+  .entry:first-child { border-top: none; }
+
+  .entry-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .entry-guest .entry-label { color: var(--gold); }
+  .entry-concierge .entry-label { color: var(--muted); }
+
+  .lang-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold-dim);
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  .entry-text {
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ivory);
+  }
+
+  .register::-webkit-scrollbar { width: 4px; }
+  .register::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring-outer, .ring-mid, .petals { animation: none; }
   }
 </style>
 </head>
 <body>
 
   <div class="card">
-    <h1>🏨 Hotel Voice Assistant</h1>
-    <div class="subtitle">Speak in any language. I'll understand and reply back, out loud.</div>
+    <div class="eyebrow">Nimo Labs &middot; AI Assistant</div>
+    <h1>Voice Assistant</h1>
+    <div class="subtitle">Speak in any language — I'll understand and reply back, out loud.</div>
 
-    <div class="mic-wrap">
-      <button id="micBtn">🎤</button>
-      <div id="statusText">Tap to speak</div>
+    <div class="orb-wrap">
+      <div class="orb-stage" id="orbStage">
+        <svg viewBox="0 0 200 200">
+          <defs>
+            <radialGradient id="coreGradient" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fff3d6"/>
+              <stop offset="55%" stop-color="var(--gold)"/>
+              <stop offset="100%" stop-color="var(--gold-dim)"/>
+            </radialGradient>
+          </defs>
+
+          <circle class="ring ring-outer" cx="100" cy="100" r="92" stroke-dasharray="1 7"/>
+          <circle class="ring ring-mid" cx="100" cy="100" r="76" stroke-dasharray="3 5"/>
+
+          <g class="petals" id="petals"></g>
+
+          <circle class="core-glow" id="coreGlow" cx="100" cy="100" r="30"/>
+          <circle class="core" id="core" cx="100" cy="100" r="22"/>
+        </svg>
+      </div>
+
+      <div class="status" id="statusText">Say &quot;Hello&quot; to begin</div>
+      <button class="tap-hint" id="micBtn">Tap to speak instead</button>
     </div>
 
-    <div class="log" id="log"></div>
+    <div class="register" id="log"></div>
   </div>
 
 <script>
+  // ---- Build the radiating petal marks around the mandala once ----
+  (function buildPetals() {
+    const group = document.getElementById("petals");
+    const petalCount = 24;
+    for (let i = 0; i < petalCount; i++) {
+      const angle = (360 / petalCount) * i;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", 100);
+      line.setAttribute("y1", 12);
+      line.setAttribute("x2", 100);
+      line.setAttribute("y2", 20);
+      line.setAttribute("transform", `rotate(${angle} 100 100)`);
+      group.appendChild(line);
+    }
+  })();
+
+  const core = document.getElementById("core");
+  const coreGlow = document.getElementById("coreGlow");
+  const orbStage = document.getElementById("orbStage");
+
+  function setOrbState(state) {
+    orbStage.classList.remove("state-idle", "state-listening", "state-thinking", "state-speaking");
+    orbStage.classList.add("state-" + state);
+  }
+
+  function setOrbEnergy(volume) {
+    // Maps live volume (roughly 0-60 range) to a pleasant radius pulse
+    const clamped = Math.max(0, Math.min(volume, 60));
+    const r = 22 + clamped * 0.45;
+    const glowR = 30 + clamped * 0.6;
+    core.setAttribute("r", r.toFixed(1));
+    coreGlow.setAttribute("r", glowR.toFixed(1));
+  }
+
+  setOrbState("idle");
+
+  // =========================================================
+  // Everything below is the assistant's working logic (unchanged)
+  // =========================================================
+
   const BACKEND_URL = "http://127.0.0.1:8000";
-  const WAKE_WORD = "hello hiya";        // change this phrase anytime
-  const SILENCE_THRESHOLD = 8;           // lower = more sensitive to quiet sounds
-  const SILENCE_DURATION_MS = 3500;      // how long silence must last before auto-stop
+  const WAKE_WORD = "hello nikki";        // change this phrase anytime
+  const SILENCE_DURATION_MS = 2000;       // how long silence must last before auto-stop
+  const NOISE_MARGIN = 12;                // how much louder than background noise counts as "speaking"
+  const CALIBRATION_MS = 400;             // time spent measuring background noise first
+  const MAX_RECORDING_MS = 15000;         // safety cap so it never listens forever
 
   const micBtn = document.getElementById("micBtn");
   const statusText = document.getElementById("statusText");
@@ -159,17 +321,28 @@
   let wakeRecognition;
   let audioContext, analyser;
 
-  function addBubble(text, sender, langTag) {
-    const bubble = document.createElement("div");
-    bubble.className = "bubble " + sender;
-    bubble.textContent = text;
+  function addEntry(text, role, langTag) {
+    const entry = document.createElement("div");
+    entry.className = "entry " + (role === "user" ? "entry-guest" : "entry-concierge");
+
+    const label = document.createElement("div");
+    label.className = "entry-label";
+    label.textContent = role === "user" ? "Guest" : "Assistant";
+
     if (langTag) {
-      const tag = document.createElement("span");
-      tag.className = "lang-tag";
-      tag.textContent = langTag;
-      bubble.appendChild(tag);
+      const pill = document.createElement("span");
+      pill.className = "lang-pill";
+      pill.textContent = langTag;
+      label.appendChild(pill);
     }
-    log.appendChild(bubble);
+
+    const body = document.createElement("div");
+    body.className = "entry-text";
+    body.textContent = text;
+
+    entry.appendChild(label);
+    entry.appendChild(body);
+    log.appendChild(entry);
     log.scrollTop = log.scrollHeight;
   }
 
@@ -192,28 +365,36 @@
         .join(" ")
         .toLowerCase();
 
+      console.log("Heard:", transcript);
+
       if (transcript.includes(WAKE_WORD)) {
+        console.log("Wake word matched! Starting recording...");
         wakeRecognition.stop();
         beginListeningForCommand();
       }
     };
 
-    // Browsers auto-stop this after a while of silence — just restart it
     wakeRecognition.onend = () => {
       if (!isRecording) {
         wakeRecognition.start();
       }
     };
 
+    wakeRecognition.onerror = (event) => {
+      console.error("Wake word recognition error:", event.error);
+    };
+
     wakeRecognition.start();
-    statusText.textContent = 'Say "Hello Hiya" to begin';
-    micBtn.classList.remove("recording");
+    statusText.textContent = 'Say "' + WAKE_WORD + '" to begin';
+    setOrbState("idle");
+    setOrbEnergy(0);
+    console.log("Wake word listener started, listening for:", WAKE_WORD);
   }
 
   // --- PART 2: Record the actual question, auto-stop on silence ---
   async function beginListeningForCommand() {
     isRecording = true;
-    micBtn.classList.add("recording");
+    setOrbState("listening");
     statusText.textContent = "Listening to your question...";
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -238,27 +419,75 @@
     };
 
     mediaRecorder.start();
-    monitorSilence();
+    const recordingStartTime = Date.now();
+
+    // Let the mic settle for a moment (echo of the wake word can otherwise
+    // skew the background-noise calibration) before measuring silence
+    setTimeout(() => {
+      calibrateAndMonitor(recordingStartTime);
+    }, 350);
   }
 
-  function monitorSilence() {
+  function calibrateAndMonitor(recordingStartTime) {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    let silenceStart = null;
+    const noiseSamples = [];
+    const calibrationEnd = Date.now() + CALIBRATION_MS;
 
-    function checkVolume() {
+    function sampleNoise() {
       if (!isRecording) return;
 
       analyser.getByteFrequencyData(dataArray);
       const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      noiseSamples.push(volume);
+      setOrbEnergy(volume);
 
-      if (volume < SILENCE_THRESHOLD) {
+      if (Date.now() < calibrationEnd) {
+        requestAnimationFrame(sampleNoise);
+      } else {
+        const avg = noiseSamples.reduce((a, b) => a + b, 0) / noiseSamples.length;
+        // Cap the threshold so a noisy calibration moment can never make it unreasonably high
+        const dynamicThreshold = Math.min(avg + NOISE_MARGIN, 30);
+        console.log("Background noise avg:", avg.toFixed(2), "-> speaking threshold:", dynamicThreshold.toFixed(2));
+        monitorSilence(dynamicThreshold, recordingStartTime);
+      }
+    }
+
+    requestAnimationFrame(sampleNoise);
+  }
+
+  function monitorSilence(dynamicThreshold, recordingStartTime) {
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let silenceStart = null;
+    let hasSpoken = false;
+    let smoothedVolume = null;
+
+    function checkVolume() {
+      if (!isRecording) return;
+
+      if (Date.now() - recordingStartTime > MAX_RECORDING_MS) {
+        stopRecording();
+        return;
+      }
+
+      analyser.getByteFrequencyData(dataArray);
+      const rawVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+      smoothedVolume = (smoothedVolume === null)
+        ? rawVolume
+        : (smoothedVolume * 0.85 + rawVolume * 0.15);
+
+      setOrbEnergy(smoothedVolume);
+      console.log("Volume:", smoothedVolume.toFixed(1), "| Threshold:", dynamicThreshold.toFixed(1), "| Speaking so far:", hasSpoken);
+
+      if (smoothedVolume > dynamicThreshold) {
+        hasSpoken = true;
+        silenceStart = null;
+      } else if (hasSpoken) {
         if (silenceStart === null) silenceStart = Date.now();
         if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
           stopRecording();
           return;
         }
-      } else {
-        silenceStart = null;
       }
 
       requestAnimationFrame(checkVolume);
@@ -270,11 +499,12 @@
   function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
-    micBtn.classList.remove("recording");
+    setOrbState("thinking");
+    setOrbEnergy(10);
     statusText.textContent = "Thinking...";
   }
 
-  // --- PART 3: Process the recording (unchanged logic, just auto-restarts wake word after) ---
+  // --- PART 3: Process the recording ---
   async function handleRecordingStop() {
     const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
 
@@ -291,22 +521,22 @@
       const detectedLang = transcribeData.language;
 
       if (!userText || !userText.trim()) {
-        statusText.textContent = 'Didn\'t catch that. Say "Hello Hiya" to try again.';
+        statusText.textContent = 'Didn\'t catch that. Say "' + WAKE_WORD + '" to try again.';
         initWakeWordListener();
         return;
       }
 
-      addBubble(userText, "user", "Detected: " + detectedLang);
+      addEntry(userText, "user", detectedLang);
 
       const chatRes = await fetch(BACKEND_URL + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText })
+        body: JSON.stringify({ message: userText, language: detectedLang })
       });
       const chatData = await chatRes.json();
       const replyText = chatData.reply;
 
-      addBubble(replyText, "assistant");
+      addEntry(replyText, "assistant");
       await speak(replyText, detectedLang);
 
     } catch (err) {
@@ -320,6 +550,9 @@
   function speak(text, detectedLang) {
     return new Promise(async (resolve, reject) => {
       try {
+        setOrbState("speaking");
+        statusText.textContent = "Speaking...";
+
         const langKey = (detectedLang || "english").toLowerCase().trim();
 
         const speakRes = await fetch(BACKEND_URL + "/speak", {
@@ -330,25 +563,70 @@
 
         const audioBlob = await speakRes.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
-
         const audio = new Audio(audioUrl);
-        audio.onended = resolve;
-        audio.play();
+
+        // Reuse the same mandala visualizer, now driven by the assistant's own voice
+        const playbackContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = playbackContext.createMediaElementSource(audio);
+        const playbackAnalyser = playbackContext.createAnalyser();
+        playbackAnalyser.fftSize = 512;
+        source.connect(playbackAnalyser);
+        playbackAnalyser.connect(playbackContext.destination);
+
+        const dataArray = new Uint8Array(playbackAnalyser.frequencyBinCount);
+        let animating = true;
+
+        function animatePlayback() {
+          if (!animating) return;
+          playbackAnalyser.getByteFrequencyData(dataArray);
+          const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          setOrbEnergy(volume * 1.4);
+          requestAnimationFrame(animatePlayback);
+        }
+        animatePlayback();
+
+        let settled = false;
+
+        function finishSpeaking() {
+          if (settled) return;   // avoid resolving twice
+          settled = true;
+          animating = false;
+          setOrbEnergy(0);
+          try { playbackContext.close(); } catch (e) {}
+          resolve();
+        }
+
+        audio.onended = finishSpeaking;
+
+        audio.onerror = (e) => {
+          console.error("Audio playback error:", e);
+          finishSpeaking();
+        };
+
+        // Safety net: if playback somehow never fires onended/onerror,
+        // force it to finish after a generous timeout instead of hanging forever
+        setTimeout(finishSpeaking, 20000);
+
+        audio.play().catch((err) => {
+          console.error("audio.play() failed:", err);
+          finishSpeaking();
+        });
       } catch (err) {
         reject(err);
       }
     });
   }
 
-  // Manual click still works as a quick test shortcut (skips the wake word)
+  // Manual click: start if idle, stop if currently recording
   micBtn.addEventListener("click", () => {
     if (!isRecording) {
       if (wakeRecognition) wakeRecognition.stop();
       beginListeningForCommand();
+    } else {
+      stopRecording();
     }
   });
 
-  // Start the assistant listening for the wake word as soon as the page loads
   initWakeWordListener();
 </script>
 
